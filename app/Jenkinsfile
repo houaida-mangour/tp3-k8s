@@ -6,9 +6,10 @@ pipeline {
         FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
     }
     stages {
-        stage('Checkout') {
+        stage('Cloner le dépôt') {
             steps {
-                checkout scm
+                git branch: 'docker', 
+                    url: 'https://github.com/houaida-mangour/tp3-k8s.git'
             }
         }
         stage('Build Docker image') {
