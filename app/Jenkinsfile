@@ -1,58 +1,63 @@
 pipeline {
     agent any
+  
     environment {
-        IMAGE_NAME = "houaidamang/nodejs-app"
-        IMAGE_TAG  = "latest"
-        FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
+        DOCKER_IMAGE = 'houaidamang/mon-app'
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_FULL_IMAGE = "${DOCKER_IMAGE}:${DOCKER_TAG}"
     }
+    
     stages {
-                stage('Cloner le dépôt') {
+        stage('Cloner le dépôt') {
             steps {
-                checkout([$class: 'GitSCM',
-                    branches: [[name: 'main']], // ta branche
-                    doGenerateSubmoduleConfigurations: false,
-                    extensions: [[$class: 'CleanBeforeCheckout']], // nettoie workspace
-                    userRemoteConfigs: [[url: 'https://github.com/houaida-mangour/tp3-k8s.git']]
-                ])
+                git branch: 'docker', 
+                    url: 'https://github.com/houaida-mangour/tp3-k8s/tree/main'
             }
         }
-
-        stage('Build Docker image') {
+ }
+        stage('Construire l\'image Docker') {
             steps {
                 script {
-                    sh "docker build -t ${FULL_IMAGE} ."
+                    sh "docker build -f Docker-files/app/Dockerfile -t ${DOCKER_FULL_IMAGE} ."
+                    sh "docker tag ${DOCKER_FULL_IMAGE} ${DOCKER_IMAGE}:latest"
                 }
             }
         }
-        stage('Push to Docker Hub') {
+        
+        stage('Pousser l\'image Docker') {
             steps {
                 script {
                     withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub', 
-                        usernameVariable: 'DOCKER_USER', 
-                        passwordVariable: 'DOCKER_PASS'
+                        credentialsId: 'dockerhub-creds',
+                        passwordVariable: 'DOCKER_PASSWORD',
+                        usernameVariable: 'DOCKER_USERNAME'
                     )]) {
-                        sh """
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${FULL_IMAGE}
-                        """
+                        // Use --password-stdin for security
+                        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+                        sh "docker push ${DOCKER_FULL_IMAGE}"
+                        sh "docker push ${DOCKER_IMAGE}:latest"
                     }
                 }
             }
         }
-        stage('Deploy to Kubernetes') {
+        stage('Déployer dans Kubernetes') {
             steps {
                 script {
-                    sh "kubectl apply -f deployment.yaml"
-                    sh "kubectl apply -f service.yaml"
+                    withCredentials([file(credentialsId: 'kubeconfig-docker-desktop', variable: 'KUBECONFIG')]) {
+                        sh 'kubectl --kubeconfig=$KUBECONFIG get nodes'
+                        
+                        // Appliquer les manifestes Kubernetes
+                        //sh "kubectl --kubeconfig=$KUBECONFIG set image deployment/mon-app mon-app=${DOCKER_FULL_IMAGE} -n default || true"
+                        
+                        // Ou appliquer des fichiers de déploiement
+                        //sh 'kubectl --kubeconfig=$KUBECONFIG apply -f k8s/ -n default'
+                        
+                        // Vérifier le statut du déploiement
+                        //sh 'kubectl --kubeconfig=$KUBECONFIG rollout status deployment/mon-app -n default'
+                    }
                 }
             }
-        }
     }
-    post {
-        success {
-            echo "Déploiement réussi ! Accède via NodePort."
-            sh "kubectl get svc nodejs-service"
-        }
-    }
+    
+   
 }
