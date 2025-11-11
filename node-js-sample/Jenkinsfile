@@ -8,9 +8,10 @@ pipeline {
     stages {
         stage('Clone repo') {
             steps {
-                git 'https://github.com/houaidamang/nodejs-app-jenkins.git'
+                git credentialsId: 'github', url: 'https://github.com/houaidamang/nodejs-app-jenkins.git', branch: 'main'
             }
         }
+
         stage('Build Docker image') {
             steps {
                 sh "docker build -t ${FULL_IMAGE} ."
