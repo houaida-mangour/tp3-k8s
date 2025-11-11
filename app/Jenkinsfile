@@ -6,12 +6,17 @@ pipeline {
         FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
     }
     stages {
-        stage('Cloner le dépôt') {
+                stage('Cloner le dépôt') {
             steps {
-                git branch: 'main', 
-                    url: 'https://github.com/houaida-mangour/tp3-k8s.git'
+                checkout([$class: 'GitSCM',
+                    branches: [[name: 'main']], // ta branche
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [[$class: 'CleanBeforeCheckout']], // nettoie workspace
+                    userRemoteConfigs: [[url: 'https://github.com/houaida-mangour/tp3-k8s.git']]
+                ])
             }
         }
+
         stage('Build Docker image') {
             steps {
                 script {
