@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Clone repo') {
             steps {
-                git 'https://github.com/heroku/node-js-sample.git'
+                git 'https://github.com/houaidamang/nodejs-app-jenkins.git'
             }
         }
         stage('Build Docker image') {
